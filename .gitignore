@@ -6,3 +6,4 @@
 
 # env files
 .env
+.venv
