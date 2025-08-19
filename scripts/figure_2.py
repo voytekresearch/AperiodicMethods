@@ -18,8 +18,6 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
-from scipy.interpolate import interp1d
 from scipy.signal import get_window
 
 from specparam.utils.spectral import interpolate_spectrum
@@ -30,10 +28,10 @@ from neurodsp.filt import filter_signal
 
 # settings - figure
 FIGSIZE = [5, 7]
-plt.style.use('mplstyle/nature_reviews.mplstyle')
 PANEL_FONTSIZE = 12 # for panel labels
+plt.style.use('mplstyle/nature_reviews.mplstyle')
 
-# settings - panel b
+# settings - panel c-e
 FS = 500 # sampling frequency
 N_SECONDS = 2 # signal duration
 PAD_FRACTION = 0.2 # pad duration / signal duration
@@ -82,7 +80,6 @@ def main():
 
     # save/show
     fig.savefig(os.path.join('figures', 'figure_2.png'))
-    # plt.show()
 
 
 def plot_panel_ab(fig, subplot_spec, fs, n_seconds=10):
