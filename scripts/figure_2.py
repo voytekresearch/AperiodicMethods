@@ -58,13 +58,13 @@ def main():
     plot_panel_cde(fig, spec[3], fs=FS, n_seconds=N_SECONDS, 
                    pad_length=int(N_SECONDS*FS*PAD_FRACTION))
     
-    # plot panel f: Cohen, 2014
-    panel_c_path = "notebooks/images/cohen_2014_multitaper.png"
-    ax_c = fig.add_subplot(spec[5])
-    img = plt.imread(panel_c_path)[..., :3] # drop transparency
-    img = (img - img.min(axis=(0,1))) / (img.max(axis=(0,1)) - img.min(axis=(0,1))) # sharpen image
-    ax_c.imshow(img)
-    ax_c.axis('off')
+    # # plot panel f: Cohen, 2014
+    # panel_c_path = "notebooks/images/cohen_2014_multitaper.png"
+    # ax_c = fig.add_subplot(spec[5])
+    # img = plt.imread(panel_c_path)[..., :3] # drop transparency
+    # img = (img - img.min(axis=(0,1))) / (img.max(axis=(0,1)) - img.min(axis=(0,1))) # sharpen image
+    # ax_c.imshow(img)
+    # ax_c.axis('off')
 
     # add panel titles
     titles = ["Smoothing / transforming data", 
@@ -81,7 +81,7 @@ def main():
     fig.text(0.01, 0.67, 'C', fontsize=PANEL_FONTSIZE, fontweight='bold')
     fig.text(0.51, 0.67, 'D', fontsize=PANEL_FONTSIZE, fontweight='bold')
     fig.text(0.15, 0.445, 'E', fontsize=PANEL_FONTSIZE, fontweight='bold')
-    fig.text(0.01, 0.29, 'F', fontsize=PANEL_FONTSIZE, fontweight='bold')
+    # fig.text(0.01, 0.29, 'F', fontsize=PANEL_FONTSIZE, fontweight='bold')
 
     # save/show
     fig.savefig(os.path.join(savepath, 'figure_2.png'))
@@ -108,9 +108,9 @@ def plot_panel_ab(fig, subplot_spec, fs, n_seconds=10):
                                      f_range=[center_freq-3, center_freq+3],
                                      filter_type='iir', butterworth_order=3)
 
-    # # compute power spectra
-    # freqs, psd = compute_spectrum(signal, fs=fs, method='welch')
-    # _, psd_mfilt = compute_spectrum(signal_mfilt, fs=fs, method='welch')
+    # compute power spectra
+    freqs, psd = compute_spectrum(signal, fs=fs, method='welch')
+    _, psd_mfilt = compute_spectrum(signal_mfilt, fs=fs, method='welch')
 
     # fm_wNoise = fooof.FOOOF()
     # fm_wNoise.fit(freqs, psd, freq_range=[1,150])
@@ -125,7 +125,7 @@ def plot_panel_ab(fig, subplot_spec, fs, n_seconds=10):
     # # fm_wNoise._ap_fit
     # fm_filt = fooof.FOOOF(max_n_peaks=0)
     # fm_filt.fit(freqs, psd_mfilt, freq_range=[1,150])
-    
+
     # plot
     ax_a.loglog(freqs, psd, color='k', alpha=0.5, label='raw signal')
     ax_a.loglog(freqs, psd_mfilt, color='b', alpha=0.5, label='filtered signal')
