@@ -24,9 +24,18 @@ import matplotlib.patches as patches
 from mne.time_frequency import tfr_array_multitaper
 import seaborn as sns
 
+from neurodsp.sim import (
+    sim_synaptic_current,
+    sim_knee
+)
+from neurodsp.spectral import compute_spectrum
+
 from neurodsp.utils import create_times
 from neurodsp.sim.utils import rotate_timeseries
 from specparam import SpectralModel, SpectralTimeModel
+
+import fooof
+from fooof.utils.params import compute_knee_frequency
 
 import sys
 sys.path.append('code')
@@ -35,7 +44,7 @@ from tfr_utils import plot_evoked_tfr
 
 # settings - figure
 plt.style.use('mplstyle/nature_reviews.mplstyle')
-FIGSIZE = [FIGURE_WIDTH, 7]
+FIGSIZE = [FIGURE_WIDTH, 10]
 TIME_POINTS = [-0.35, -0.25, -0.15, 1.35] # which to plot
 COLORS = sns.color_palette("Greens", len(TIME_POINTS))
 
@@ -67,8 +76,8 @@ def main():
 
     # create figure and gridspec
     fig = plt.figure(figsize=FIGSIZE, constrained_layout=True)
-    gs = gridspec.GridSpec(figure=fig, ncols=1, nrows=4, 
-                           height_ratios=[0.5, 0.75, 0.75, 0.5])
+    gs = gridspec.GridSpec(figure=fig, ncols=1, nrows=5, 
+                           height_ratios=[0.5, 0.75, 0.75, 0.5, 0.5])
 
     # Simulate and plot bursty oscillation
     ax_a = fig.add_subplot(gs[0])
@@ -105,18 +114,23 @@ def main():
     ax_d.set_title("Time-resolved spectral features")
     compute_and_plot_sliding_window_params(tfr, time_tfr, freqs, ax=ax_d)
 
+    # Add variable freq range plots
+    ax_e = gridspec.GridSpecFromSubplotSpec(1, 3, subplot_spec=gs[4],
+                                            width_ratios=[1, 1, 1])
+    plot_variable_freq_ranges(fig, ax_e)
+
     # add panel labels
-    fig.text(0.01, 0.97, 'a', fontsize=PANEL_FONTSIZE, fontweight='bold')
-    fig.text(0.01, 0.76, 'b', fontsize=PANEL_FONTSIZE, fontweight='bold')
-    fig.text(0.01, 0.43, 'c', fontsize=PANEL_FONTSIZE, fontweight='bold')
-    fig.text(0.01, 0.21, 'd', fontsize=PANEL_FONTSIZE, fontweight='bold')
+    # fig.text(0.01, 0.97, 'A', fontsize=PANEL_FONTSIZE, fontweight='bold')
+    # fig.text(0.01, 0.76, 'B', fontsize=PANEL_FONTSIZE, fontweight='bold')
+    # fig.text(0.01, 0.43, 'C', fontsize=PANEL_FONTSIZE, fontweight='bold')
+    # fig.text(0.01, 0.21, 'D', fontsize=PANEL_FONTSIZE, fontweight='bold')
 
     # remove spines
     for ax in [ax_a, ax_b, *axes_c, ax_d]:
         remove_spines(ax)
 
     # # Save
-    fig.savefig(os.path.join('figures', 'figure_0.png'))
+    fig.savefig('figures\\figure_0.png')#os.path.join('figures', 'figure_0.png'))
 
 
 def sim_and_plot_signal(ax):
@@ -194,7 +208,7 @@ def plot_sparam_psd(tfr, time, freqs, tp, ax):
 
     # Plot PSD and aperiodic fit
     ax.loglog(freqs, powers, color="k", label="spectrum")
-    ax.loglog(fm.freqs, 10**fm._ap_fit, color="b", 
+    ax.loglog(fm.data.freqs, 10**fm.results.model._ap_fit, color="b", 
               label="aperiodic fit", linestyle='--')
     ax.set(xlabel="frequency (Hz)", ylabel="power (au)") 
     ax.legend(loc="lower left")
@@ -218,6 +232,123 @@ def compute_and_plot_sliding_window_params(tfr, time, freqs, ax):
     ax.set_xlabel("time (s)")
     ax.set_ylabel("exponent")
     add_task_labels(ax)
+
+
+def plot_variable_freq_ranges(fig, ax_in): 
+
+    knees = [1,5,10,15,20,25,30][::-1]
+    seeds = np.arange(40,40+len(knees))
+    # tau_E = (0.005, (1 / (2 * np.pi * highKnee)))  # rise, decay
+    # tau_I = (0.005, (1 / (2 * np.pi * lowKnee)))  # rise, decay
+    n_E = 8000
+    n_I = 2000
+    firRate_E = 2  # Hz
+    firRate_I = 2  # Hz
+    scale_I = 1
+    n_seconds = 100
+    fs = 1000
+    f_range = (1, 150)
+    colors = sns.color_palette('crest', n_colors=len(knees))
+    alpha_min = 0.45
+    alpha_max = 1
+    alphas = np.linspace(alpha_min, alpha_max, len(knees)) #[1,0.95,0.85,0.75,0.7][::-1]
+
+
+    for i,knee in enumerate(knees):
+        
+        tau = (0.005, (1 / (2 * np.pi * knee)))  # rise, decay
+
+        np.random.seed(seeds[i])#42)
+        ## Use these to simulate currents from both of these; this will give us a slower (inhibitory) signal, and a faster (excitatory) one
+        sig = sim_synaptic_current(
+            n_seconds=n_seconds,
+            fs=fs,
+            n_neurons=n_E,
+            firing_rate=firRate_E,
+            tau_r=tau[0],
+            tau_d=tau[1],
+        )
+        # sig = sim_knee(n_seconds=n_seconds, fs=fs, exponent1=-0.1,exponent2=-2, knee=knee)
+        time = np.arange(0, len(sig)) / fs
+
+
+        ## Calc PSDs for each timeseries and plot; these should have different knees
+        freqs_slow, powers_slow = compute_spectrum(
+            sig, fs, f_range=f_range, avg_type="mean", nperseg=fs, noverlap=fs / 2
+        )
+
+        ax = plt.subplot(ax_in[0])
+        ax.loglog(freqs_slow, (powers_slow/powers_slow[0]), label="Inhibitory", color=colors[i])
+        ax.axvline(knee, color=colors[i], linewidth=1.5)
+        ax.scatter(knee, (powers_slow/powers_slow[0])[np.where(freqs_slow == knee)[0]], color=colors[i])
+        ax.set_xlabel('Frequency (log Hz)', fontsize='large', weight='bold')
+        ax.set_ylabel('\nPower (log)', fontsize='large', weight='bold')
+        # ax.set_facecolor('lightgrey')
+        # plt.legend()
+        
+        init_settings = {
+            "peak_width_limits": (2, 14),
+            "peak_threshold": 2,
+            "max_n_peaks": 0,
+        }
+
+        init_settings["aperiodic_mode"] = "fixed"
+        fm_gt = fooof.FOOOF(**init_settings)
+        fm_gt.fit(freqs_slow, power_spectrum=powers_slow, freq_range = (knee, 150))
+        # fm_narrow.plot()
+        exp_gt= fm_gt.get_params('aperiodic_params','exponent')
+
+        init_settings["aperiodic_mode"] = "knee"
+        fm_narrow = fooof.FOOOF(**init_settings)
+        fm_narrow.fit(freqs_slow, power_spectrum=powers_slow, freq_range = (20, 100))
+        # fm_narrow.plot()
+        exp_narrow = fm_narrow.get_params('aperiodic_params','exponent')
+        # print(exp_narrow)
+        knee_narrow = compute_knee_frequency(fm_narrow.get_params('aperiodic_params','knee'), exp_narrow)
+        # print(knee)
+        # print('.')
+
+        init_settings["aperiodic_mode"] = "knee"
+        fm_wide = fooof.FOOOF(**init_settings)
+        fm_wide.fit(freqs_slow, power_spectrum=powers_slow, freq_range = (0, 100))
+        # fm_wide.plot()
+        exp_wide = fm_wide.get_params('aperiodic_params','exponent')
+        # print(exp_wide)
+        knee_wide = compute_knee_frequency(fm_wide.get_params('aperiodic_params','knee'), exp_wide)
+        # print(knee)
+        # print('.................')
+
+        fm_low = fooof.FOOOF(**init_settings)
+        fm_low.fit(freqs_slow, power_spectrum=powers_slow, freq_range = (0, 20))
+        # fm_wide.plot()
+        exp_low = fm_low.get_params('aperiodic_params','exponent')
+        # print(exp_wide)
+        knee_low = compute_knee_frequency(fm_low.get_params('aperiodic_params','knee'), exp_wide)
+
+        ax = plt.subplot(ax_in[1])
+        scatter_std = 0.025
+        ax.set_xlim(-0.25,2.5)
+        ax.scatter(np.random.normal(0,scatter_std), exp_low, color=colors[i])
+        ax.scatter(np.random.normal(0.75,scatter_std), exp_narrow, color=colors[i])
+        ax.scatter(np.random.normal(1.5,scatter_std), exp_wide, color=colors[i])
+        ax.scatter(np.random.normal(2.25,scatter_std), exp_gt, color=colors[i])
+        ax.set_xticks([0,0.75, 1.5,2.25])
+        ax.set_xticklabels(['Low \n(0-20)','High \n(20-100)', 'Broadband \n(0-100)', 'Ground \nTruth'], fontsize='medium')
+        ax.set_xlabel('Fit Range (Hz)', fontsize='large', weight='bold')
+        ax.set_ylabel('Exponent Estimate', fontsize='large', weight='bold')
+        # ax.set_facecolor('lightgrey')
+
+        ax = plt.subplot(ax_in[2])
+        ax.set_xlim(-0.25,2.5)
+        ax.scatter(np.random.normal(0,scatter_std), knee_low, color=colors[i])
+        ax.scatter(np.random.normal(0.75,scatter_std), knee_narrow, color=colors[i])
+        ax.scatter(np.random.normal(1.5,scatter_std), knee_wide, color=colors[i])
+        ax.scatter(np.random.normal(2.25,scatter_std), knee, color=colors[i])
+        ax.set_xticks([0,0.75, 1.5,2.25])
+        ax.set_xticklabels(['Low \n(0-20)','High \n(20-100)', 'Broadband \n(0-100)', 'Ground \nTruth'], fontsize='medium')
+        ax.set_xlabel('Fit Range (Hz)', fontsize='large', weight='bold')
+        ax.set_ylabel('Knee Estimate', fontsize='large', weight='bold')
+        # ax.set_facecolor('lightgrey')
 
 
 def add_background(ax, background_color):
