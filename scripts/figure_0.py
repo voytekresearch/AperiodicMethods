@@ -47,6 +47,7 @@ plt.style.use('mplstyle/nature_reviews.mplstyle')
 FIGSIZE = [FIGURE_WIDTH, 10]
 TIME_POINTS = [-0.35, -0.25, -0.15, 1.35] # which to plot
 COLORS = sns.color_palette("Greens", len(TIME_POINTS))
+# sns.set_context('talk')
 
 # settings - simulation parameters
 N_SECONDS = 2 # signal duration (s)
@@ -77,18 +78,25 @@ def main():
     # create figure and gridspec
     fig = plt.figure(figsize=FIGSIZE, constrained_layout=True)
     gs = gridspec.GridSpec(figure=fig, ncols=1, nrows=5, 
-                           height_ratios=[0.5, 0.75, 0.75, 0.5, 0.5])
+                           height_ratios=[0.75, 0.5, 0.75, 0.5, 0.5])
+
+    # Add variable freq range plots
+    ax_e = gridspec.GridSpecFromSubplotSpec(1, 4, subplot_spec=gs[0],
+                                            width_ratios=[1, 1, 1, 1])
+    plot_variable_freq_ranges(fig, ax_e)
+    plot_diff_time_wins(fig, plt.subplot(ax_e[3]))
 
     # Simulate and plot bursty oscillation
-    ax_a = fig.add_subplot(gs[0])
-    sig, _ = sim_and_plot_signal(ax_a)
+    ax_a = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=gs[1],
+                                            width_ratios=[1])
+    sig, _ = sim_and_plot_signal(plt.subplot(ax_a[0]))
 
     # Compute and plot TFR
-    ax_b = fig.add_subplot(gs[1])
+    ax_b = fig.add_subplot(gs[2])
     tfr, time_tfr, freqs = compute_and_plot_tfr(sig, fig, ax_b)
 
     # Plot spectral parameterization
-    gs_c = gridspec.GridSpecFromSubplotSpec(1, 5, subplot_spec=gs[2],
+    gs_c = gridspec.GridSpecFromSubplotSpec(1, 5, subplot_spec=gs[3],
                                             width_ratios=[1, 1, 1, 0.001, 1])
     ax_c_0 = fig.add_subplot(gs_c[0])
     ax_c_1 = fig.add_subplot(gs_c[1])
@@ -110,14 +118,9 @@ def main():
     ax_c_x.axis("off")
 
     # Compute and plot sliding window parameters
-    ax_d = fig.add_subplot(gs[3, :])
+    ax_d = fig.add_subplot(gs[4, :])
     ax_d.set_title("Time-resolved spectral features")
     compute_and_plot_sliding_window_params(tfr, time_tfr, freqs, ax=ax_d)
-
-    # Add variable freq range plots
-    ax_e = gridspec.GridSpecFromSubplotSpec(1, 3, subplot_spec=gs[4],
-                                            width_ratios=[1, 1, 1])
-    plot_variable_freq_ranges(fig, ax_e)
 
     # add panel labels
     # fig.text(0.01, 0.97, 'A', fontsize=PANEL_FONTSIZE, fontweight='bold')
@@ -126,7 +129,7 @@ def main():
     # fig.text(0.01, 0.21, 'D', fontsize=PANEL_FONTSIZE, fontweight='bold')
 
     # remove spines
-    for ax in [ax_a, ax_b, *axes_c, ax_d]:
+    for ax in [ ax_b, *axes_c, ax_d]:
         remove_spines(ax)
 
     # # Save
@@ -350,6 +353,36 @@ def plot_variable_freq_ranges(fig, ax_in):
         ax.set_ylabel('Knee Estimate', fontsize='large', weight='bold')
         # ax.set_facecolor('lightgrey')
 
+def plot_diff_time_wins(fig, ax):
+
+    cols = sns.dark_palette('#69d', n_colors=3)
+    # Set some general settings, to be used across all simulations
+    fs = 500
+    n_seconds = 50
+    # Create a times vector for the simulations
+    times = create_times(n_seconds, fs)
+    np.random.seed(35)
+    # Simulate another knee signal, with different exponents & knee
+    knee_ap2 = sim_knee(n_seconds, fs, exponent1=-0.5, exponent2=-2, knee=2)
+
+    freqs, knee_psd1 = compute_spectrum(knee_ap2[times<1], fs)
+    freqs, knee_psd2 = compute_spectrum(knee_ap2, fs)
+    freqs, knee_psd3 = compute_spectrum(knee_ap2[times<10], fs)
+
+    freqs_mask = (freqs>=1) & (freqs<50)
+    knee_psd1, knee_psd2, knee_psd3 = knee_psd1[freqs_mask], knee_psd2[freqs_mask], knee_psd3[freqs_mask]
+    freqs = freqs[freqs_mask]
+
+    # Plot the simulated data, in the frequency domain
+    ax.loglog(freqs, (knee_psd1), label = 'Short Time Window (1s)', color=cols[0], linewidth=3, alpha=1)
+    ax.loglog(freqs, (knee_psd3), label = 'Medium Time Window (10s)', color=cols[1], linewidth=3)
+    ax.loglog(freqs, (knee_psd2), label='Long Time Window (50s)', color=cols[2], linewidth=3, alpha=0.85)
+    ax.set_xlabel('Frequency (log Hz)', fontsize='large', weight='bold')
+    ax.set_ylabel('\nPower (log)', fontsize='large', weight='bold')
+    ax.set_xlim(-5,20)#freqs[-1]+20)
+    plt.axvline(2, color='grey')
+    # ax.set_facecolor('darkgrey')
+    plt.legend()
 
 def add_background(ax, background_color):
 
