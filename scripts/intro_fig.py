@@ -25,7 +25,8 @@ import seaborn as sns
 from neurodsp.sim import (
     sim_synaptic_current,
     sim_knee,
-    sim_combined
+    sim_combined,
+    sim_oscillation
 )
 from neurodsp.spectral import compute_spectrum
 
@@ -70,6 +71,9 @@ FREQ_BANDWIDTH = 7 # frequency bandwidth (Hz)
 
 # set random seed
 np.random.seed(39)
+colors_pal = (sns.color_palette('crest'))
+prestim_color = colors_pal[0]
+poststim_color = colors_pal[3]
 
 # MAIN #########################################################################
 
@@ -77,8 +81,8 @@ def main():
 
     # create figure and gridspec
     fig = plt.figure(figsize=FIGSIZE, constrained_layout=True)
-    gs = gridspec.GridSpec(figure=fig, ncols=1, nrows=5, 
-                           height_ratios=[0.75, 0.5, 0.5, 0.5, 0.75])
+    gs = gridspec.GridSpec(figure=fig, ncols=1, nrows=3, 
+                           height_ratios=[0.75, 0.5, 0.5])
 
     # # Add variable freq range plots
     # ax_e = gridspec.GridSpecFromSubplotSpec(1, 4, subplot_spec=gs[0],
@@ -92,8 +96,11 @@ def main():
     event_win = 0.25
     fs = 1000
     sig, times = generate_modulated_signal(events, event_win, fs)
-    for ev in events: ax_a.axvline(ev, color='k', linewidth=3)
-    ax_a.plot(times, sig)
+    for ev in events: 
+        ax_a.axvline(ev, color='grey', linewidth=3)
+        ax_a.axvspan(xmin = ev-event_win, xmax=ev,  color = prestim_color)
+        ax_a.axvspan(xmin = ev, xmax=ev+event_win, color = poststim_color)
+    ax_a.plot(times, sig, color='k', alpha=0.85)
 
     # Compute and plot TFR
     # ax_b = fig.add_subplot(gs[2])
@@ -157,6 +164,7 @@ def generate_modulated_signal(events, event_win, fs):
         "sim_oscillation": [{"freq": 10}],
     }
     sig = sim_combined(n_seconds=5, fs=fs, components=sim_components)
+    osc_sig = (sim_oscillation(n_seconds=5, fs=fs, freq=10)*0.10)
 
     times = create_times(n_seconds=5, fs=fs)
 
@@ -166,7 +174,9 @@ def generate_modulated_signal(events, event_win, fs):
         print(ev_idx, ev_idx_end)
 
         mod_sig = sig[ev_idx : ev_idx_end]
+        osc_sig_add = osc_sig[ev_idx : ev_idx_end]
         rotated = rotate_timeseries(sig=mod_sig, fs=fs, delta_exp=-1, f_rotation=40)
+        rotated = rotated + osc_sig_add
         sig[ev_idx : ev_idx_end ] = rotated
 
     return sig, times
@@ -181,24 +191,36 @@ def plot_prestim_poststim_psd(sig, ev_idx, event_win, fs, axs):
     pows_post = pows_post[(freqs > 0.5) & (freqs < 50)]
     freqs = freqs[(freqs > 0.5) & (freqs < 50)]
 
-    psd_ax.plot(freqs,pows_pre)
-    psd_ax.plot(freqs,pows_post)
-    psd_ax.set_xscale('log')
-    psd_ax.set_yscale('log')
-
-    pre_total_power = np.mean(pows_pre[(freqs > 8) & (freqs <=12)])
-    pst_total_power = np.mean(pows_post[(freqs > 8) & (freqs <=12)])
+    alpha_mask = (freqs > 8) & (freqs <=12)
+    pre_total_power = np.mean(pows_pre[alpha_mask])
+    pst_total_power = np.mean(pows_post[alpha_mask])
     delta_total = (pst_total_power - pre_total_power)
 
     specpar_pre = fooof.FOOOF(**SPECPARAM_SETTINGS)
     specpar_pre.fit(freqs=freqs, power_spectrum=pows_pre, freq_range=(0.5, 50))    
     specpar_pst = fooof.FOOOF(**SPECPARAM_SETTINGS)
-    specpar_pst.fit(freqs=freqs, power_spectrum=pows_pre, freq_range=(0.5, 50))
+    specpar_pst.fit(freqs=freqs, power_spectrum=pows_post, freq_range=(0.5, 50))
 
     flat_spec_delta = ((specpar_pst._spectrum_flat) - (specpar_pre._spectrum_flat))
-    flat_spec_delta = np.mean(flat_spec_delta[(freqs > 8) & (freqs <=12)])
-    ap_delta = ((specpar_pst._ap_fit) - (specpar_pst._ap_fit))
-    ap_delta = np.mean(ap_delta[(freqs > 8) & (freqs <=12)])
+    flat_spec_delta = np.mean(flat_spec_delta[alpha_mask])
+    ap_delta = ((specpar_pst._ap_fit) - (specpar_pre._ap_fit))
+    ap_delta = np.mean(ap_delta[alpha_mask])
+
+    pre_ap_fit = 10**(specpar_pre._ap_fit)
+    pst_ap_fit = 10**(specpar_pst._ap_fit)
+
+    psd_ax.plot(freqs,pows_pre, color = prestim_color, alpha=0.85)
+    psd_ax.plot(freqs,pre_ap_fit, color = 'k', linewidth=2)
+    psd_ax.plot(freqs,pows_post, color = poststim_color, alpha=0.85)
+    psd_ax.plot(freqs,pst_ap_fit, color = 'k', linewidth=2)
+    psd_ax.axvspan(xmin=8, xmax=12, color='grey', alpha=0.5)
+
+    psd_ax.fill_between(
+        freqs[alpha_mask], pows_post[alpha_mask], pst_ap_fit[alpha_mask], where=(pows_post[alpha_mask] != pst_ap_fit[alpha_mask]), 
+        interpolate=True, color="#054907", alpha=0.25
+        )
+    # psd_ax.set_xscale('log')
+    psd_ax.set_yscale('log')
 
     bar_ax.bar(['delta total', 'delta corr osc', 'delta aper'], height=[delta_total, flat_spec_delta, ap_delta])
 
