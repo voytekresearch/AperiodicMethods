@@ -6,4 +6,4 @@ seaborn==0.13.2
 mne==1.10.1
 neurodsp==2.3.0
 fooof==1.1.1
-specparam==2.0.0rc3
+specparam==2.0.0rc5

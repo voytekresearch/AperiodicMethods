@@ -4,7 +4,7 @@ Plotting utility functions and settings.
 
 # plotting settings
 FIGURE_WIDTH = 7 # Nature Reviews maximum figure size: 180mm (w) x 215 mm (h)
-PANEL_FONTSIZE = 12
+PANEL_FONTSIZE = 15
 
 
 def remove_spines(ax):
