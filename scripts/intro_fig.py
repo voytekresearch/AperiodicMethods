@@ -78,6 +78,8 @@ np.random.seed(42)
 colors_pal = (sns.color_palette('crest'))
 prestim_color = colors_pal[0]
 poststim_color = colors_pal[3]
+dynamic_color = sns.color_palette('PRGn')[0]
+static_color = sns.color_palette('PRGn')[-1]
 
 # MAIN #########################################################################
 
@@ -86,7 +88,7 @@ def main():
     # create figure and gridspec
     fig = plt.figure(figsize=FIGSIZE, constrained_layout=True)
     gs = gridspec.GridSpec(figure=fig, ncols=1, nrows=5, 
-                           height_ratios=[0.5,1, 0.5, 0.5, 0.1])
+                           height_ratios=[1,0.5, 0.5, 0.5, 0.1])
 
     # # Add variable freq range plots
     # ax_e = gridspec.GridSpecFromSubplotSpec(1, 4, subplot_spec=gs[0],
@@ -95,7 +97,7 @@ def main():
     # plot_diff_time_wins(fig, plt.subplot(ax_e[3]))
 
     # Simulate and plot aperiodic + oscillation with events
-    ax_top = gridspec.GridSpecFromSubplotSpec(ncols=3, nrows=1, subplot_spec=gs[0], width_ratios=[2,5,2])
+    ax_top = gridspec.GridSpecFromSubplotSpec(ncols=3, nrows=1, subplot_spec=gs[1], width_ratios=[2,5,2])
     events = [2.5]#[0.75, 1.25, 3.25, 4.5]
     event_win = 1
     sig_no, times_no = generate_modulated_signal(events, event_win, FS, rotate_aper=1)
@@ -224,8 +226,9 @@ def plot_prestim_poststim_psd(sig, ev_idx, event_win, fs, axs, total_bandpow = 0
     # ap_delta = (((pst_ap_fit) - (pre_ap_fit)) / pre_ap_fit)*100
     # ap_delta = np.mean(ap_delta[alpha_mask])
 
-    psd_ax.plot(freqs,pows_pre, color = prestim_color, alpha=0.85, linewidth=3)
-    psd_ax.plot(freqs,pows_post, color = poststim_color, alpha=0.85, linewidth=3)
+    psd_ax.plot(freqs,pows_pre, color = prestim_color, alpha=0.85, linewidth=3, label='Pre-Event')
+    psd_ax.plot(freqs,pows_post, color = poststim_color, alpha=0.85, linewidth=3, label='Post-Event')
+    psd_ax.legend(fontsize=20)
 
     # psd_ax.axvspan(xmin=8, xmax=12, color='grey', alpha=0.5)
 
@@ -236,22 +239,30 @@ def plot_prestim_poststim_psd(sig, ev_idx, event_win, fs, axs, total_bandpow = 0
         bar_ax.bar([u'Δ oscillation', u'Δ aperiodic'], height=[ delta_total, 0], color='grey')
         # psd_ax.plot(freqs,pre_ap_fit, color = prestim_color, linewidth=1)
         # psd_ax.plot(freqs,pst_ap_fit, color = poststim_color, linewidth=1)
-        
-        psd_ax.plot(OSC_FREQ, pows_pre[(freqs == OSC_FREQ)][0], color=prestim_color, marker='o', alpha=0.8)
-        psd_ax.plot(OSC_FREQ, pows_post[(freqs == OSC_FREQ)][0], color=poststim_color, marker='o', alpha=0.8)
 
-        # psd_ax.axvspan(xmin=OSC_FREQ-2, xmax=OSC_FREQ+2, color=prestim_color, alpha=0.5, ymax = pows_pre[(freqs == OSC_FREQ)][0])
+        psd_ax.axvspan(xmin=OSC_FREQ-2, xmax=OSC_FREQ+2, color=static_color, alpha=0.35)
         # psd_ax.axvspan(xmin=OSC_FREQ-2, xmax=OSC_FREQ+2, color=poststim_color, alpha=0.5, ymax = pows_post[(freqs == OSC_FREQ)][0])
+
+        psd_ax.plot(OSC_FREQ, pows_pre[(freqs == OSC_FREQ)][0], color=static_color, marker='o', alpha=0.8)
+        psd_ax.plot(OSC_FREQ, pows_post[(freqs == OSC_FREQ)][0], color=static_color, marker='o', alpha=0.8)
+        # psd_ax.fill_between(
+        #     freqs[alpha_mask], pows_post[alpha_mask], 
+        #     interpolate=True, color=poststim_color, alpha=0.25
+        #     )
+        # psd_ax.fill_between(
+        #     freqs[alpha_mask], pows_pre[alpha_mask], 
+        #     interpolate=True, color=prestim_color, alpha=0.25
+        #     )
     else:
         psd_ax.plot(freqs,pre_ap_fit, color = prestim_color, linewidth=3, linestyle='--')
         psd_ax.plot(freqs,pst_ap_fit, color = poststim_color, linewidth=3, linestyle='--')
         psd_ax.fill_between(
             freqs[alpha_mask], pows_post[alpha_mask], pst_ap_fit[alpha_mask], where=(pows_post[alpha_mask] != pst_ap_fit[alpha_mask]), 
-            interpolate=True, color=poststim_color, alpha=0.25
+            interpolate=True, color=dynamic_color, alpha=0.25
             )
         psd_ax.fill_between(
             freqs[alpha_mask], pows_pre[alpha_mask], pre_ap_fit[alpha_mask], where=(pows_pre[alpha_mask] != pre_ap_fit[alpha_mask]), 
-            interpolate=True, color=prestim_color, alpha=0.25
+            interpolate=True, color=dynamic_color, alpha=0.25
             )
         bar_ax.bar([u'Δ oscillation', u'Δ aperiodic'], height=[ flat_spec_delta, ap_delta], color='grey')
     # bar_ax.set_ylim(BAR_YLIM)
