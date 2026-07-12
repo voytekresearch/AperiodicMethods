@@ -39,15 +39,16 @@ from fooof.utils.params import compute_knee_frequency
 
 import sys
 sys.path.append('code')
-from plt_utils import remove_spines, FIGURE_WIDTH, PANEL_FONTSIZE
+from plt_utils import remove_spines, FIGURE_WIDTH, FIGURE_HEIGHT, PANEL_FONTSIZE, smooth_interpolate
 from tfr_utils import plot_evoked_tfr
 
 # settings - figure
 plt.style.use('mplstyle/nature_reviews.mplstyle')
-FIGSIZE = [FIGURE_WIDTH+2, 10]
+FIGSIZE = [FIGURE_WIDTH, FIGURE_HEIGHT]
 TIME_POINTS = [-0.35, -0.25, -0.15, 1.35] # which to plot
 COLORS = sns.color_palette("Blues", len(TIME_POINTS))
-TITLE_FONTSIZE = PANEL_FONTSIZE - 5
+TITLE_FONTSIZE = PANEL_FONTSIZE - 3
+AXES_FONTSIZE = TITLE_FONTSIZE - 4
 # sns.set_context('talk')
 
 # settings - simulation parameters
@@ -68,6 +69,7 @@ SPECPARAM_SETTINGS = {
 # settings - multitaper
 TFR_WINDOW = 0.3 # window length (s)
 FREQ_BANDWIDTH = 7 # frequency bandwidth (Hz)
+SAVEFIG_PATH = 'C:\\Users\\dillc\\OneDrive\\UCSD\\Voytek_Lab\\code_dev\\AperiodicMethods\\notebooks\\images\\figures'
 
 # set random seed
 np.random.seed(39)
@@ -84,17 +86,29 @@ def main():
     # Add variable freq range plots
     ax_e = gridspec.GridSpecFromSubplotSpec(1, 4, subplot_spec=gs[0],
                                             width_ratios=[1, 1, 1, 1])
-    plot_variable_freq_ranges(fig, ax_e)
-    plot_diff_time_wins(fig, plt.subplot(ax_e[3]))
+    ax_e_subplots = [plt.subplot(ax_e[i]) for i in range(ax_e.ncols)]
+    plot_variable_freq_ranges(fig, ax_e_subplots[:3])
+    plot_diff_time_wins(fig, ax_e_subplots[3])#plt.subplot(ax_e[3]))
+    for ax_i in [ax_e_subplots[0], ax_e_subplots[3]]:
+        ax_i.set_xticklabels(ax_i.get_xticklabels(), fontsize=AXES_FONTSIZE)
+        ax_i.set_yticklabels(ax_i.get_yticklabels(), fontsize=AXES_FONTSIZE)
+    for ax_i in ax_e_subplots[1:ax_e.ncols]:
+        ax_i.set_xticklabels(ax_i.get_xticklabels(), fontsize=AXES_FONTSIZE-2)
+        ax_i.set_yticklabels(ax_i.get_yticklabels(), fontsize=AXES_FONTSIZE)
 
     # Simulate and plot bursty oscillation
     ax_a = gridspec.GridSpecFromSubplotSpec(1, 1, subplot_spec=gs[1],
                                             width_ratios=[1])
-    sig, _ = sim_and_plot_signal(plt.subplot(ax_a[0]))
+    ax_a_subplot = plt.subplot(ax_a[0])
+    sig, _ = sim_and_plot_signal(ax_a_subplot)
+    ax_a_subplot.set_xticklabels(ax_a_subplot.get_xticklabels(), fontsize=AXES_FONTSIZE)
+    ax_a_subplot.set_yticklabels(ax_a_subplot.get_yticklabels(), fontsize=AXES_FONTSIZE)
 
     # Compute and plot TFR
     ax_b = fig.add_subplot(gs[2])
     tfr, time_tfr, freqs = compute_and_plot_tfr(sig, fig, ax_b)
+    ax_b.set_xticklabels(ax_b.get_xticklabels(), fontsize=AXES_FONTSIZE)
+    ax_b.set_yticklabels(ax_b.get_yticklabels(), fontsize=AXES_FONTSIZE)
 
     # Plot spectral parameterization
     gs_c = gridspec.GridSpecFromSubplotSpec(1, 5, subplot_spec=gs[3],
@@ -106,8 +120,10 @@ def main():
     axes_c = [ax_c_0, ax_c_1, ax_c_2, ax_c_3]
     for ax, tp, col in zip(axes_c, TIME_POINTS, COLORS):
         plot_sparam_psd(tfr, time_tfr, freqs, ax=ax, tp=tp)
-    ax_c_1.set_title("                                Parameterization of spectrogram bins", fontsize=TITLE_FONTSIZE)
-    for ax in [ax_c_1, ax_c_2, ax_c_3]:
+    ax_c_1.set_title("                                Parameterization of spectrogram bins", fontsize=TITLE_FONTSIZE, fontweight='bold')
+    for ax in [ax_c_0,ax_c_1, ax_c_2, ax_c_3]:
+        ax.set_xticklabels(ax.get_xticklabels(), fontsize=AXES_FONTSIZE)
+        ax.set_yticklabels(ax.get_yticklabels(), fontsize=AXES_FONTSIZE)
         ax.sharey(ax_c_0)
         ax.label_outer()
     for ax, col in zip(axes_c, COLORS):
@@ -120,23 +136,25 @@ def main():
 
     # Compute and plot sliding window parameters
     ax_d = fig.add_subplot(gs[4])
-    ax_d.set_title("Time-resolved spectral features", fontsize=TITLE_FONTSIZE)
+    ax_d.set_title("Time-resolved spectral features", fontsize=TITLE_FONTSIZE, fontweight='bold')
     compute_and_plot_sliding_window_params(tfr, time_tfr, freqs, ax=ax_d)
+    ax_d.set_xticklabels(ax_d.get_xticklabels(), fontsize=AXES_FONTSIZE)
+    ax_d.set_yticklabels(ax_d.get_yticklabels(), fontsize=AXES_FONTSIZE)
 
     # add panel labels
-    fig.text(0.01, 0.97, 'A', fontsize=PANEL_FONTSIZE, fontweight='bold')
-    fig.text(0.75, 0.97, 'B', fontsize=PANEL_FONTSIZE, fontweight='bold')
+    fig.text(0.01, 0.98, 'A', fontsize=PANEL_FONTSIZE, fontweight='bold')
+    fig.text(0.74, 0.98, 'B', fontsize=PANEL_FONTSIZE, fontweight='bold')
     fig.text(0.01, 0.78, 'C', fontsize=PANEL_FONTSIZE, fontweight='bold')
     fig.text(0.01, 0.62, 'D', fontsize=PANEL_FONTSIZE, fontweight='bold')
     fig.text(0.01, 0.43, 'E', fontsize=PANEL_FONTSIZE, fontweight='bold')
-    fig.text(0.01, 0.28, 'F', fontsize=PANEL_FONTSIZE, fontweight='bold')
+    fig.text(0.01, 0.26, 'F', fontsize=PANEL_FONTSIZE, fontweight='bold')
 
     # remove spines
     for ax in [ ax_b, *axes_c, ax_d]:
         remove_spines(ax)
 
     # # Save
-    fig.savefig('figures\\figure_0.png')#os.path.join('figures', 'figure_0.png'))
+    fig.savefig(f'{SAVEFIG_PATH}\\figure_0.png')#os.path.join('figures', 'figure_0.png'))
 
 
 def sim_and_plot_signal(ax):
@@ -150,15 +168,19 @@ def sim_and_plot_signal(ax):
     sig_0 = sig_0 - np.mean(sig_0)
     sig_1 = sig_1 - np.mean(sig_1)
     signal = np.concatenate((-sig_0, sig_1))
+    smoothing_win_size = 30
+    smooth_start_idx = (int(FS*-T_MIN)-smoothing_win_size)
+    smooth_end_idx = (int(FS*-T_MIN)+smoothing_win_size)
+    signal[smooth_start_idx : smooth_end_idx] = smooth_interpolate(signal[smooth_start_idx], signal[smooth_end_idx], size=len(signal[smooth_start_idx: smooth_end_idx]) )
     time = create_times(N_SECONDS, FS, start_val=T_MIN)
 
     # Plot the simulated data, in the time domain
     ax.plot(time, signal, color='k', linewidth=1)
     ax.set(xlabel="time (s)", ylabel="voltage (au)")
-    ax.set_title("Simulated neural time-series", fontsize=TITLE_FONTSIZE)
+    ax.set_title("Simulated neural time-series", fontsize=TITLE_FONTSIZE, fontweight='bold')
     ax.set_xlim(T_MIN, N_SECONDS+T_MIN)
-    ax.set_xlabel(ax.get_xlabel(), fontsize=TITLE_FONTSIZE, weight='bold')
-    ax.set_ylabel(ax.get_ylabel(), fontsize=TITLE_FONTSIZE, weight='bold')
+    ax.set_xlabel(ax.get_xlabel(), fontsize=TITLE_FONTSIZE)#, weight='bold')
+    ax.set_ylabel(ax.get_ylabel(), fontsize=TITLE_FONTSIZE)#, weight='bold')
 
 
     # label task periods
@@ -184,9 +206,9 @@ def compute_and_plot_tfr(sig, fig, ax):
     # Plot the TFR
     plot_evoked_tfr(tfr_power, freqs, time_tfr, title="Spectrogram", fig=fig, 
                     ax=ax, annotate_time=None)
-    ax.set_title('Spectrogram', fontsize=TITLE_FONTSIZE)
-    ax.set_xlabel(ax.get_xlabel(), fontsize=TITLE_FONTSIZE, weight='bold')
-    ax.set_ylabel(ax.get_ylabel(), fontsize=TITLE_FONTSIZE, weight='bold')
+    ax.set_title('Spectrogram', fontsize=TITLE_FONTSIZE, fontweight='bold')
+    ax.set_xlabel(ax.get_xlabel(), fontsize=TITLE_FONTSIZE)#, weight='bold')
+    ax.set_ylabel(ax.get_ylabel(), fontsize=TITLE_FONTSIZE)#, weight='bold')
 
     # plot boxes around TIME_POINTS ranges
     for tp, color in zip(TIME_POINTS, COLORS):
@@ -223,13 +245,13 @@ def plot_sparam_psd(tfr, time, freqs, tp, ax):
     ax.loglog(fm.data.freqs, 10**fm.results.model._ap_fit, color="b", 
               label="aperiodic fit", linestyle='--')
     # ax.set(xlabel="frequency (Hz)", ylabel="power (au)") 
-    ax.set_xlabel("frequency (Hz)", fontsize=TITLE_FONTSIZE, weight='bold')
-    ax.set_ylabel("power (au)", fontsize=TITLE_FONTSIZE, weight='bold')
+    ax.set_xlabel("frequency (Hz)", fontsize=TITLE_FONTSIZE)#, weight='bold')
+    ax.set_ylabel("power (au)", fontsize=TITLE_FONTSIZE)#, weight='bold')
     ax.legend(loc="lower left")
 
     # label time
     ax.text(0.5, 0.93, f"time: {tp:.2f} s", ha='center', va='center', 
-            transform=ax.transAxes)
+            transform=ax.transAxes, fontsize=AXES_FONTSIZE)
 
 
 def compute_and_plot_sliding_window_params(tfr, time, freqs, ax):
@@ -247,9 +269,10 @@ def compute_and_plot_sliding_window_params(tfr, time, freqs, ax):
     ax2 = ax.twinx()
     ax2.plot(time, offset, color='b', linestyle='--', label='offset')
     ax2.legend(loc='lower right', fontsize=PANEL_FONTSIZE)
+    ax2.set_yticklabels(ax2.get_yticklabels(), fontsize=AXES_FONTSIZE)
 
     # Label
-    ax.set_xlabel("time (s)", fontsize=TITLE_FONTSIZE, weight='bold')
+    ax.set_xlabel("time (s)", fontsize=TITLE_FONTSIZE)#, weight='bold')
     ax.set_ylabel("exponent", fontsize=TITLE_FONTSIZE, weight='bold')
     ax2.set_ylabel("offset", fontsize=TITLE_FONTSIZE, weight='bold')
     add_task_labels(ax)
@@ -299,12 +322,12 @@ def plot_variable_freq_ranges(fig, ax_in):
             sig, fs, f_range=f_range, avg_type="mean", nperseg=fs, noverlap=fs / 2
         )
 
-        ax = plt.subplot(ax_in[0])
+        ax = ax_in[0]#plt.subplot(ax_in[0])
         ax.loglog(freqs_slow, (powers_slow/powers_slow[0]), label="Inhibitory", color=colors[i], zorder=0)
         # ax.axvline(knee, color=colors[i], linewidth=1.5)
         ax.scatter(knee, (powers_slow/powers_slow[0])[np.where(freqs_slow == knee)[0]], color=colors[i], edgecolors='k', zorder=1)
-        ax.set_xlabel('frequency (log Hz)', fontsize=TITLE_FONTSIZE, weight='bold')
-        ax.set_ylabel('\npower (log)', fontsize=TITLE_FONTSIZE, weight='bold')
+        ax.set_xlabel('frequency (log Hz)', fontsize=TITLE_FONTSIZE)#, weight='bold')
+        ax.set_ylabel('\npower (log)', fontsize=TITLE_FONTSIZE)#, weight='bold')
         # ax.set_facecolor('lightgrey')
         # plt.legend()
         
@@ -347,7 +370,7 @@ def plot_variable_freq_ranges(fig, ax_in):
         # print(exp_wide)
         knee_low = compute_knee_frequency(fm_low.get_params('aperiodic_params','knee'), exp_wide)
 
-        ax = plt.subplot(ax_in[1])
+        ax = ax_in[1]#plt.subplot(ax_in[1])
         scatter_std = 0.025
         ax.set_xlim(-0.25,2.5)
         ax.scatter(np.random.normal(0,scatter_std), exp_low, color=colors[i])
@@ -355,21 +378,21 @@ def plot_variable_freq_ranges(fig, ax_in):
         ax.scatter(np.random.normal(1.5,scatter_std), exp_wide, color=colors[i])
         ax.scatter(np.random.normal(2.25,scatter_std), exp_gt, color=colors[i])
         ax.set_xticks([0,0.75, 1.5,2.25])
-        ax.set_xticklabels(['low \n(0-20)','high \n(20-100)', 'broadband \n(0-100)', 'ground \ntruth'], fontsize='medium')
-        ax.set_xlabel('fit range (Hz)', fontsize=TITLE_FONTSIZE, weight='bold')
-        ax.set_ylabel('exponent estimate', fontsize=TITLE_FONTSIZE, weight='bold')
+        ax.set_xticklabels(['low \n(0-20)','high \n(20-100)', 'broad-\nband \n(0-100)', 'ground \ntruth'], fontsize='medium')
+        ax.set_xlabel('fit range (Hz)', fontsize=TITLE_FONTSIZE)#, weight='bold')
+        ax.set_ylabel('exponent estimate', fontsize=TITLE_FONTSIZE)#, weight='bold')
         # ax.set_facecolor('lightgrey')
 
-        ax = plt.subplot(ax_in[2])
+        ax = ax_in[2]#plt.subplot(ax_in[2])
         ax.set_xlim(-0.25,2.5)
         ax.scatter(np.random.normal(0,scatter_std), knee_low, color=colors[i])
         ax.scatter(np.random.normal(0.75,scatter_std), knee_narrow, color=colors[i])
         ax.scatter(np.random.normal(1.5,scatter_std), knee_wide, color=colors[i])
         ax.scatter(np.random.normal(2.25,scatter_std), knee, color=colors[i])
         ax.set_xticks([0,0.75, 1.5,2.25])
-        ax.set_xticklabels(['low \n(0-20)','high \n(20-100)', 'broadband \n(0-100)', 'ground \ntruth'], fontsize='medium')
-        ax.set_xlabel('fit range (Hz)', fontsize=TITLE_FONTSIZE, weight='bold')
-        ax.set_ylabel('knee estimate', fontsize=TITLE_FONTSIZE, weight='bold')
+        ax.set_xticklabels(['low \n(0-20)','high \n(20-100)', 'broad-\nband \n(0-100)', 'ground \ntruth'], fontsize='medium')
+        ax.set_xlabel('fit range (Hz)', fontsize=TITLE_FONTSIZE)#, weight='bold')
+        ax.set_ylabel('knee estimate', fontsize=TITLE_FONTSIZE)#, weight='bold')
         # ax.set_facecolor('lightgrey')
 
 
@@ -398,12 +421,12 @@ def plot_diff_time_wins(fig, ax):
     ax.loglog(freqs, (knee_psd1), label = 'Short Time Window (1s)', color=cols[0], linewidth=lw, alpha=1)
     ax.loglog(freqs, (knee_psd2), label='Long Time Window (50s)', color=cols[2], linewidth=lw, alpha=0.75)
     ax.loglog(freqs, (knee_psd3), label = 'Medium Time Window (10s)', color=cols[1], linewidth=lw)
-    ax.set_xlabel('frequency (log Hz)', fontsize=TITLE_FONTSIZE, weight='bold')
-    ax.set_ylabel('\npower (log)', fontsize=TITLE_FONTSIZE, weight='bold')
+    ax.set_xlabel('frequency (log Hz)', fontsize=TITLE_FONTSIZE)#, weight='bold')
+    ax.set_ylabel('\npower (log)', fontsize=TITLE_FONTSIZE)#, weight='bold')
     ax.set_xlim(-5,20)#freqs[-1]+20)
     plt.axvline(2, color='grey')
     # ax.set_facecolor('darkgrey')
-    plt.legend()
+    plt.legend(fontsize=AXES_FONTSIZE-3.5, loc='lower right')
 
 def add_background(ax, background_color):
 
@@ -425,9 +448,9 @@ def add_task_labels(ax):
     # label task periods
     ax.axvspan(0, 1.0, color='y', alpha=0.2)
     ax.set_ylim(ax.get_ylim()[0], ax.get_ylim()[1]*1.1)
-    ax.text(-.25, ax.get_ylim()[1]*0.98, 'baseline', ha='center', va='top')
-    ax.text(0.50, ax.get_ylim()[1]*0.98, 'encoding', ha='center', va='top')
-    ax.text(1.25, ax.get_ylim()[1]*0.98, 'delay', ha='center', va='top')
+    ax.text(-.25, ax.get_ylim()[1]*0.98, 'baseline', ha='center', va='top', fontsize=AXES_FONTSIZE+2)
+    ax.text(0.50, ax.get_ylim()[1]*0.98, 'encoding', ha='center', va='top', fontsize=AXES_FONTSIZE+2)
+    ax.text(1.25, ax.get_ylim()[1]*0.98, 'delay', ha='center', va='top', fontsize=AXES_FONTSIZE+2)
 
 
 if __name__ == "__main__":
