@@ -58,10 +58,13 @@ def plot_evoked_tfr(tfr, freqs, time, title=None, annotate_time=0,
     # plot normalized spectrogram
     ax.pcolormesh(time, freqs, tfr, cmap=cmap, shading='auto',
                   norm=TwoSlopeNorm(vcenter=0))
-    ax.set(xlabel="time (s)", ylabel="frequnecy (Hz)")
-    fig.colorbar(ax.pcolormesh(time, freqs, tfr, cmap=cmap, 
+    ax.set(xlabel="time (s)", ylabel="frequency (Hz)")
+    cbar = fig.colorbar(ax.pcolormesh(time, freqs, tfr, cmap=cmap, 
                                norm=TwoSlopeNorm(vcenter=0)), ax=ax,
                                label="normalized power (au)")
+    cbar.ax.tick_params(labelsize=9)
+    cbar.set_label("normalized power (au)", size=10, weight="bold")
+
     
     # label
     if annotate_time:

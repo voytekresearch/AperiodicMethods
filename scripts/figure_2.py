@@ -105,7 +105,9 @@ def main():
     ax_a_subplot.set_yticklabels(ax_a_subplot.get_yticklabels(), fontsize=AXES_FONTSIZE)
 
     # Compute and plot TFR
-    ax_b = fig.add_subplot(gs[2])
+    ax_b_all = gridspec.GridSpecFromSubplotSpec(1, 3, subplot_spec=gs[2],
+                                            width_ratios=[0.1,1,0.1])
+    ax_b = fig.add_subplot(ax_b_all[1])#fig.add_subplot(gs[2])
     tfr, time_tfr, freqs = compute_and_plot_tfr(sig, fig, ax_b)
     ax_b.set_xticklabels(ax_b.get_xticklabels(), fontsize=AXES_FONTSIZE)
     ax_b.set_yticklabels(ax_b.get_yticklabels(), fontsize=AXES_FONTSIZE)
@@ -144,10 +146,10 @@ def main():
     # add panel labels
     fig.text(0.01, 0.98, 'A', fontsize=PANEL_FONTSIZE, fontweight='bold')
     fig.text(0.74, 0.98, 'B', fontsize=PANEL_FONTSIZE, fontweight='bold')
-    fig.text(0.01, 0.78, 'C', fontsize=PANEL_FONTSIZE, fontweight='bold')
-    fig.text(0.01, 0.62, 'D', fontsize=PANEL_FONTSIZE, fontweight='bold')
-    fig.text(0.01, 0.43, 'E', fontsize=PANEL_FONTSIZE, fontweight='bold')
-    fig.text(0.01, 0.26, 'F', fontsize=PANEL_FONTSIZE, fontweight='bold')
+    fig.text(0.01, 0.755, 'C', fontsize=PANEL_FONTSIZE, fontweight='bold')
+    fig.text(0.01, 0.60, 'D', fontsize=PANEL_FONTSIZE, fontweight='bold')
+    fig.text(0.01, 0.44, 'E', fontsize=PANEL_FONTSIZE, fontweight='bold')
+    fig.text(0.01, 0.28, 'F', fontsize=PANEL_FONTSIZE, fontweight='bold')
 
     # remove spines
     for ax in [ ax_b, *axes_c, ax_d]:
