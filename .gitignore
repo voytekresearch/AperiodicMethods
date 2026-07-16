@@ -7,3 +7,10 @@
 # env files
 .env
 .venv
+
+# manuscript
+/manuscript
+
+# ai files
+/figures/Fig1.ai
+/figures/pedagogical_fig.ai
