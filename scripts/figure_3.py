@@ -82,7 +82,7 @@ def main():
     fig.text(0.01, 0.29, 'f', fontsize=PANEL_FONTSIZE, fontweight='bold')
 
     # save/show
-    fig.savefig(os.path.join('figures', 'figure_2.png'))
+    fig.savefig(os.path.join('C:\\Users\\dillc\\OneDrive\\UCSD\\Voytek_Lab\\code_dev\\AperiodicMethods\\notebooks\\images\\figures\\', 'figure_2.png'))
 
 
 def plot_panel_ab(fig, subplot_spec, fs, n_seconds=10):
