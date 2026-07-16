@@ -30,6 +30,9 @@ from neurodsp.sim import (
 )
 from neurodsp.spectral import compute_spectrum
 
+import fooof
+from fooof.utils import interpolate_spectrum
+from neurodsp.sim import sim_combined
 from neurodsp.utils import create_times
 from neurodsp.sim.utils import rotate_timeseries
 from specparam import SpectralModel, SpectralTimeModel
@@ -42,6 +45,7 @@ sys.path.append('code')
 from plt_utils import remove_spines, FIGURE_WIDTH, FIGURE_HEIGHT, PANEL_FONTSIZE, smooth_interpolate
 from tfr_utils import plot_evoked_tfr
 
+savepath = 'C:\\Users\\dillc\\OneDrive\\UCSD\\Voytek_Lab\\code_dev\\AperiodicMethods\\notebooks\\images\\'
 # settings - figure
 plt.style.use('mplstyle/nature_reviews.mplstyle')
 FIGSIZE = [FIGURE_WIDTH, FIGURE_HEIGHT]
