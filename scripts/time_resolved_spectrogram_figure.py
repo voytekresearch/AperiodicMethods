@@ -45,7 +45,7 @@ sys.path.append('code')
 from plt_utils import remove_spines, FIGURE_WIDTH, FIGURE_HEIGHT, PANEL_FONTSIZE, smooth_interpolate
 from tfr_utils import plot_evoked_tfr
 
-savepath = 'C:\\Users\\dillc\\OneDrive\\UCSD\\Voytek_Lab\\code_dev\\AperiodicMethods\\notebooks\\images\\'
+# savepath = 'C:\\Users\\dillc\\OneDrive\\UCSD\\Voytek_Lab\\code_dev\\AperiodicMethods\\notebooks\\images\\'
 # settings - figure
 plt.style.use('mplstyle/nature_reviews.mplstyle')
 FIGSIZE = [FIGURE_WIDTH, FIGURE_HEIGHT]
