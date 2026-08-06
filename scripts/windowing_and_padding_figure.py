@@ -84,7 +84,8 @@ def main():
     # fig.text(0.01, 0.29, 'F', fontsize=PANEL_FONTSIZE, fontweight='bold')
 
     # save/show
-    fig.savefig(os.path.join(savepath, 'figure_3.png'))
+    # fig.savefig(os.path.join(savepath, 'figure_3.png'))
+    fig.savefig(os.path.join(savepath, 'figure_3_FINAL.pdf'), dpi=500)
 
 
 def plot_panel_ab(fig, subplot_spec, fs, n_seconds=10):

@@ -60,7 +60,8 @@ N_SECONDS = 2 # signal duration (s)
 T_MIN = -0.5 # start time (s)
 FS = 1000 # sampling frequency (Hz)
 EXPONENT = -2.5 # baseline exponent
-DELTA_EXP = -1 # task-evoked change in exponent (negative for flattening)
+DELTA_EXP1 = -0.5 # task-evoked change in exponent (negative for flattening)
+DELTA_EXP2 = -1.25
 F_ROTATION = 45 # rotation frequency (Hz)
 
 # settings - fitting parameters
@@ -72,8 +73,8 @@ SPECPARAM_SETTINGS = {
 
 # settings - multitaper
 TFR_WINDOW = 0.3 # window length (s)
-FREQ_BANDWIDTH = 7 # frequency bandwidth (Hz)
-SAVEFIG_PATH = 'C:\\Users\\dillc\\OneDrive\\UCSD\\Voytek_Lab\\code_dev\\AperiodicMethods\\notebooks\\images\\figures'
+FREQ_BANDWIDTH = 12 # frequency bandwidth (Hz)
+SAVEFIG_PATH = r'C:\Users\dillc\OneDrive\UCSD\Voytek_Lab\code_dev\AperiodicMethods\notebooks\images\Rec01\\'
 
 # set random seed
 np.random.seed(39)
@@ -160,25 +161,64 @@ def main():
         remove_spines(ax)
 
     # # Save
-    fig.savefig(f'{SAVEFIG_PATH}\\figure_0.png')#os.path.join('figures', 'figure_0.png'))
+    # fig.savefig(f'{SAVEFIG_PATH}\\figure_0.png')#os.path.join('figures', 'figure_0.png'))
+    fig.savefig(f'{SAVEFIG_PATH}\\figure_2_FINAL.pdf',dpi=500)
 
 
-def sim_and_plot_signal(ax):
-    
-    # simulate neural time-series
+def sim_signal(seed):
+
+    np.random.seed(seed)
+    # simulate full-length variants (rotate_timeseries preserves length)
+    time = create_times(N_SECONDS, FS, start_val=T_MIN)
+    # Each epoch gets its own independent white-noise realization, rotated
+    # directly to its target exponent. (Previously sig_1/sig_2 were both
+    # rotated FROM sig_0 -- rotate_timeseries only rescales FFT magnitude
+    # and leaves phase untouched, so sig_0/sig_1/sig_2 ended up ~99%
+    # correlated: the same waveform with a different tilt, not independent
+    # segments. Crossfading two correlated signals produces interference/
+    # beating -- that's the "ringing".)
+    # sig_0 = rotate_timeseries(np.random.randn(N_SECONDS*FS), FS, -EXPONENT, F_ROTATION)
+    # sig_1 = rotate_timeseries(np.random.randn(N_SECONDS*FS), FS, -EXPONENT + DELTA_EXP1, F_ROTATION)
+
+    # sig_0 = (sig_0 - np.mean(sig_0))
+    # sig_1 = sig_1 - np.mean(sig_1)
+
+    # b0 = int(FS * -T_MIN)              # sig_0 -> sig_1
+
+    # signal = np.concatenate((sig_0[:b0], sig_1[b0:]))
+
+    # win = 100
+    # taper = (1 - np.cos(np.linspace(0, np.pi, 2 * win))) / 2
+    # for b, seg_a, seg_b in [(b0, sig_0, sig_1)]:
+    #     s, e = b - win, b + win
+    #     signal[s:e] = seg_a[s:e] * (1 - taper) + seg_b[s:e] * taper
     white = np.random.randn(N_SECONDS*FS)
     sig_0 = rotate_timeseries(white, FS, -EXPONENT, F_ROTATION)
-    sig_1 = rotate_timeseries(sig_0, FS, DELTA_EXP, F_ROTATION)
-    sig_0 = sig_0[:int(FS*-T_MIN)]
-    sig_1 = sig_1[int(FS*-T_MIN):]
-    sig_0 = sig_0 - np.mean(sig_0)
+    sig_1 = rotate_timeseries(white, FS, -EXPONENT + DELTA_EXP1, F_ROTATION)
+    sig_2 = rotate_timeseries(white, FS, -EXPONENT + DELTA_EXP2, F_ROTATION)
+
+    sig_0 = (sig_0 - np.mean(sig_0))
     sig_1 = sig_1 - np.mean(sig_1)
-    signal = np.concatenate((-sig_0, sig_1))
-    smoothing_win_size = 30
-    smooth_start_idx = (int(FS*-T_MIN)-smoothing_win_size)
-    smooth_end_idx = (int(FS*-T_MIN)+smoothing_win_size)
-    signal[smooth_start_idx : smooth_end_idx] = smooth_interpolate(signal[smooth_start_idx], signal[smooth_end_idx], size=len(signal[smooth_start_idx: smooth_end_idx]) )
-    time = create_times(N_SECONDS, FS, start_val=T_MIN)
+    sig_2 = sig_2 - np.mean(sig_2)
+
+    # boundary sample indices
+    b0 = int(FS * -T_MIN)              # sig_0 -> sig_1
+    b1 = b0 + int(FS * -(T_MIN/2))     # sig_1 -> sig_2
+
+    signal = np.concatenate((sig_0[:b0], sig_1[b0:b1], sig_2[b1:]))
+
+    # crossfade real segment values at each boundary (raised-cosine, 0->1)
+    win = 100
+    taper = (1 - np.cos(np.linspace(0, np.pi, 2 * win))) / 2
+    for b, seg_a, seg_b in [(b0, sig_0, sig_1), (b1, sig_1, sig_2)]:
+        s, e = b - win, b + win
+        signal[s:e] = seg_a[s:e] * (1 - taper) + seg_b[s:e] * taper
+
+    return (signal-np.mean(signal)), time
+
+def sim_and_plot_signal(ax):
+
+    signal, time = sim_signal(39)
 
     # Plot the simulated data, in the time domain
     ax.plot(time, signal, color='k', linewidth=1)
@@ -195,18 +235,25 @@ def sim_and_plot_signal(ax):
     return signal, time
 
 
+N_SIGS=1
 def compute_and_plot_tfr(sig, fig, ax):
-
+    
     # Compute PSD using the multitaper method
     freqs = np.linspace(1, 100, 100)
     n_cycles = freqs * TFR_WINDOW # set n_cycles based on fixed time window length
     time_bandwidth =  TFR_WINDOW * FREQ_BANDWIDTH # must be >= 2
-    tfr = tfr_array_multitaper(sig[np.newaxis, np.newaxis, :], sfreq=FS, 
-                               freqs=freqs, n_cycles=n_cycles, decim=10,
-                               time_bandwidth=time_bandwidth, output="power")
 
+    tfr_sum = None
+    for i in range(N_SIGS): 
+        sig, _ = sim_signal(39+i)
+        tfr = tfr_array_multitaper(sig[np.newaxis, np.newaxis, :], sfreq=FS, 
+                                freqs=freqs, n_cycles=n_cycles, decim=10,
+                                time_bandwidth=time_bandwidth, output="power")
+        tfr_sum = tfr if tfr_sum is None else tfr_sum + tfr
+
+    tfr_avg = tfr_sum / N_SIGS
     # Extract TFR (squeeze unnecessary dimensions)
-    tfr_power = tfr.squeeze()  # Shape becomes (n_frequencies, n_times)
+    tfr_power = tfr_avg.squeeze()  # Shape becomes (n_frequencies, n_times)
     time_tfr = create_times(N_SECONDS, FS/10, start_val=T_MIN)
 
     # Plot the TFR
